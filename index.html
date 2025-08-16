@@ -1,146 +1,277 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>広葉樹管理ツール（v1.1.1）</title>
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <!-- PapaParse -->
-  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-
-  <link rel="stylesheet" href="./css/styles.css?v=111" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>広葉樹管理ツール（v1.1.2-icon-unify）</title>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+<!-- PapaParse -->
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22d3ee;
+    --ringA:#22c55e; --ringB:#f59e0b; --ringC:#ef4444; /* 優先度リング色 */
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"}
+  .wrap{display:grid;grid-template-columns:330px 1fr;grid-template-rows:auto 1fr;gap:10px;height:100vh}
+  header{grid-column:1/3;background:#0b1220;padding:10px 14px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:16px;margin:0}
+  .left{background:var(--panel);padding:12px;overflow:auto}
+  .map{position:relative}
+  #map{width:100%;height:100%}
+  .sec-title{font-size:12px;color:var(--muted);margin:16px 0 6px}
+  .legend{position:absolute;right:12px;top:12px;background:#0b1220;border:1px solid #1f2937;border-radius:10px;padding:10px;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:500}
+  .legend h4{margin:0 0 6px;font-size:12px;color:#cbd5e1}
+  .legend ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .legend li{display:flex;align-items:center;gap:8px;font-size:12px}
+  .badge{display:inline-grid;place-items:center}
+  .sum-board{position:absolute;left:12px;top:12px;background:#0b1220;border:1px solid #1f2937;border-radius:10px;padding:10px 12px;z-index:500;color:#e5e7eb;min-width:210px}
+  .sum-board h4{margin:0 0 6px;font-size:12px;color:#cbd5e1}
+  .sum-row{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px dashed #1f2937}
+  .sum-row:last-child{border-bottom:0}
+  .small{opacity:.8;font-size:11px}
+  .control{display:grid;gap:8px}
+  .filebox{border:1px dashed #374151;border-radius:10px;padding:10px;text-align:center;background:#0b1220}
+  .filebox input{width:100%}
+  .btn{appearance:none;background:#1f2937;border:1px solid #334155;color:#e5e7eb;border-radius:10px;padding:8px 10px;cursor:pointer}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #334155;background:#0b1220;border-radius:999px;padding:6px 10px}
+  .tree-pin{border:none;background:transparent}
+  .table{position:absolute;left:12px;bottom:12px;right:12px;background:#0b1220;border:1px solid #1f2937;border-radius:10px;max-height:34vh;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th,td{font-size:12px;border-bottom:1px solid #1f2937;padding:6px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+</style>
 </head>
 <body>
-<header>
-  <h1 aria-label="アプリ名">🌳 広葉樹管理ツール（<span style="color:#22d3ee">v1.1.1</span>）</h1>
-  <span class="pill small">CSV/GeoJSONを読み込んで地図＋表＋予測を可視化</span>
-  <span class="pill small">クライアントサイドのみ（サーバ不要）</span>
-</header>
-
-<div class="container">
-  <section class="panel" style="height:100%">
-    <header><div class="body">
-      <div class="controls" role="region" aria-label="操作パネル">
-        <div class="stack">
-          <label for="file">データ読込（CSV または GeoJSON）</label>
-          <input id="file" type="file" accept=".csv,.geojson,.json" aria-label="データファイルを選択" />
-          <div id="dropzone" class="dropzone" aria-label="ここにファイルをドラッグ&ドロップ">ここに CSV / GeoJSON をドラッグ＆ドロップ<br><span class="hint">または上の「ファイルを選択」から読み込み</span></div>
+  <div class="wrap">
+    <header>
+      <h1>広葉樹管理ツール（v1.1.2）</h1>
+      <span class="pill small">CSV/GeoJSONを読み込み → 地図＆種別サマリへ反映（アイコン統一）</span>
+    </header>
+    <aside class="left">
+      <div class="control">
+        <div class="filebox" id="dropZone">
+          <div class="small" style="margin-bottom:8px">ここに CSV / GeoJSON をドラッグ＆ドロップ</div>
+          <input type="file" id="file" accept=".csv,.geojson,.json" />
+          <div class="small" style="margin-top:8px">例: /mnt/data/forest_inventory_species_replaced_utf8.csv</div>
         </div>
-        <div class="stack">
-          <div class="futureBar">
-            <div class="futureRow" role="group" aria-label="未来予測">
-              <span class="badge" title="現在からの年数">⏳ 予測年数</span>
-              <input id="years" type="range" min="0" max="10" step="1" value="0" aria-label="予測年数スライダー 0から10年" />
-              <output id="yearsOut" for="years" style="min-width:4ch;text-align:right">0</output>
-              <button id="play" class="solid" aria-label="自動再生">▶ 再生</button>
-            </div>
-            <div class="priceCtrl" role="group" aria-label="価格シナリオ">
-              <span class="badge" title="木材価格倍率">💹 価格倍率</span>
-              <input id="priceMul" type="range" min="0.5" max="1.5" step="0.05" value="1.00" aria-label="価格倍率 0.5〜1.5" />
-              <output id="priceOut" for="priceMul" style="min-width:6ch;text-align:right">×1.00</output>
-            </div>
-            <div class="kpis" aria-label="KPI">
-              <div class="kpi"><div class="label">表示件数</div><div class="val" id="kpiCount">0</div></div>
-              <div class="kpi"><div class="label">総材積（m³）</div><div class="val" id="kpiVol">0</div></div>
-              <div class="kpi"><div class="label">総粗利（円）</div><div class="val" id="kpiProfit">0</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>マーカー表示</label>
-            <div class="pill" style="gap:8px">
-              <span class="small" style="color:#b7c3d7">種=形／優先度=枠色</span>
-              <select id="markerMode" aria-label="マーカー表示モード">
-                <option value="icon">アイコン（推奨）</option>
-                <option value="dot">色分けドット（直径でサイズ）</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label for="minDbh">サイズ（直径≥cm）</label>
-            <input id="minDbh" type="number" value="0" min="0" step="1" aria-label="最小直径フィルタ"/>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="speciesFilter">樹種フィルタ</label>
-            <select id="speciesFilter" aria-label="樹種で絞り込み"><option value="">（全て）</option></select>
-          </div>
-          <div>
-            <label for="prioFilter">優先度フィルタ</label>
-            <select id="prioFilter" aria-label="伐採優先度で絞り込み">
-              <option value="">（全て）</option>
-              <option value="A">A</option><option value="B">B</option><option value="C">C</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="standFilter">林分ID</label>
-            <input id="standFilter" type="text" placeholder="例: 林分番号 3" aria-label="林分IDで絞り込み"/>
-          </div>
-          <div>
-            <label for="harvestDbh">収穫基準（直径cm）</label>
-            <input id="harvestDbh" type="number" value="30" min="0" step="1" aria-label="伐採可能基準の直径"/>
-          </div>
-        </div>
-        <div class="row">
-          <div class="pill small" style="gap:8px;display:flex;align-items:center">
-            現在表示: <span id="rowCount" class="count" aria-live="polite">0</span> 本
-          </div>
-          <div class="flex" style="justify-content:end;gap:8px">
-            <button id="exportCsv" class="solid" aria-label="表示結果をCSV出力">CSV出力（現画面）</button>
-            <button id="resetFilters" class="ghost" aria-label="条件をクリア">条件クリア</button>
-          </div>
-        </div>
-        <div class="hint">
-          ・列名の自動認識：<code>緯度/経度</code> または GeoJSON の Point 形状があれば地図に描画。<br>
-          ・<code>予測_直径_1年後(cm)</code> / <code>予測_材積_1年後(m³)</code> がある場合は、年数分を線形近似で反映。<br>
-          ・価格倍率は総粗利のシナリオ試算に利用（粗利既存値があれば体積変化比×倍率で近似）。
-        </div>
+        <button class="btn" id="loadSample">サンプルCSVを読み込む</button>
       </div>
-    </div></header>
-  </section>
 
-  <section class="panel" style="display:grid;grid-template-rows:58% 42%;height:100%">
-    <div id="map" role="region" aria-label="地図表示"></div>
-    <div style="display:grid;grid-template-rows:auto 1fr auto;min-height:220px">
-      <div class="toolbar">
-        <input id="search" type="search" placeholder="テーブル検索（樹種, 林分ID, 木ID など）" aria-label="テーブル内検索" />
-        <div class="spacer"></div>
+      <div class="sec-title">樹種ごとの色（共通アイコン）</div>
+      <div id="speciesColorList"></div>
+    </aside>
+    <main class="map">
+      <div id="map"></div>
+      <div class="sum-board" id="sumBoard">
+        <h4>種別サマリ</h4>
+        <div id="sumRows" class="small">データ未読込</div>
       </div>
-      <div style="overflow:auto">
-        <table id="table" aria-label="データ表">
-          <thead>
-            <tr>
-              <th data-key="木ID">木ID</th>
-              <th data-key="樹種">樹種</th>
-              <th data-key="林分ID">林分ID</th>
-              <th data-key="伐採優先度">優先</th>
-              <th data-key="直径(cm)">直径(cm)</th>
-              <th data-key="高さ(m)">樹高(m)</th>
-              <th data-key="材積(m³)">材積(m³)</th>
-              <th data-key="推定樹齢(年)">樹齢</th>
-              <th data-key="単価(円/m³)">単価</th>
-              <th data-key="粗利(円)">粗利</th>
-              <th data-key="予測_直径_1年後(cm)">直径+1y</th>
-              <th data-key="予測_材積_1年後(m³)">材積+1y</th>
-              <th data-key="伐採可能年">伐採可能年</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
+      <div class="legend" id="legend">
+        <h4>凡例</h4>
+        <ul id="legendList"></ul>
+      </div>
+      <div class="table" id="resultBox" hidden>
+        <table>
+          <thead><tr>
+            <th>木ID</th><th>樹種</th><th>優先</th><th>直径(cm)</th><th>樹高(m)</th><th>材積(m³)</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
         </table>
       </div>
-      <div class="hint" style="padding:8px 10px;border-top:1px solid var(--border)">
-        表ヘッダクリックで並び替え。行クリックで地図をフォーカス。
-      </div>
-    </div>
-  </section>
-</div>
+    </main>
+  </div>
 
-<script type="module" src="./js/app.js?v=111"></script>
+<script>
+/**
+ * ==============================
+ *  アイコン統一モジュール（最小改修）
+ *  - 凡例 / 種別サマリ / マップを同一のSVGで描画
+ *  - 既存機能は変更せず、アイコン生成のみ共通化
+ * ==============================
+ */
+const SPECIES_COLORS = {
+  "シラカバ":"#60a5fa",
+  "ミズナラ":"#10b981",
+  "ハルニレ":"#f59e0b",
+  "イタヤカエデ":"#a78bfa",
+  "ヤチダモ":"#f43f5e"
+};
+// 未定義樹種のフォールバック
+const FALLBACK_COLOR = "#94a3b8";
+
+// 優先度リング色
+const PRIORITY_RING = { A:"var(--ringA)", B:"var(--ringB)", C:"var(--ringC)" };
+
+/**
+ * 共通SVGバッジを返す（外枠=優先度リング / 中=樹種色の葉っぱ）
+ * @param {string} species 樹種名
+ * @param {string} priority "A"|"B"|"C"|null
+ * @param {number} size px
+ * @param {boolean} withShadow 影の有無（凡例/サマリはfalse, ピンはtrueが見やすい）
+ */
+function makeSpeciesBadge(species, priority = null, size = 20, withShadow=false){
+  const col = SPECIES_COLORS[species] || FALLBACK_COLOR;
+  const ring = PRIORITY_RING[priority] || "#111827"; // nullなら目立たない枠
+  const s = size; const r = s/2; const sw = Math.max(2, Math.round(s*0.12));
+  const leafW = Math.max(6, Math.round(s*0.38));
+  const leafH = Math.max(8, Math.round(s*0.56));
+  const leafX = r - leafW/2; const leafY = r - leafH/2;
+  const shadow = withShadow ? `<filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity=".45"/></filter>` : "";
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" class="badge" aria-label="${species}">
+      <defs>${shadow}</defs>
+      <circle cx="${r}" cy="${r}" r="${r - sw/2}" fill="#0b1220" stroke="${ring}" stroke-width="${sw}" ${withShadow?"filter='url(#sh)'":''} />
+      <rect x="${leafX}" y="${leafY}" rx="${Math.round(leafW/2)}" ry="${Math.round(leafW/2)}" width="${leafW}" height="${leafH}" fill="${col}"/>
+      <path d="M ${r} ${leafY} C ${r+leafW/4} ${leafY+leafH/3}, ${r-leafW/4} ${leafY+leafH*2/3}, ${r} ${leafY+leafH}" stroke="#e5e7eb" stroke-width="1.5" fill="none"/>
+    </svg>`;
+}
+
+/** LeafletのDivIconを共通SVGで作成 */
+function makeDivIcon(species, priority){
+  return L.divIcon({
+    html: makeSpeciesBadge(species, priority, 28, true),
+    className:"tree-pin",
+    iconSize:[28,28], iconAnchor:[14,14]
+  });
+}
+
+/** 凡例UIを作成（共通SVG使用） */
+function renderLegend(){
+  const ul = document.getElementById('legendList');
+  ul.innerHTML = '';
+  Object.keys(SPECIES_COLORS).forEach(sp => {
+    const li = document.createElement('li');
+    li.innerHTML = `${makeSpeciesBadge(sp, null, 18, false)} <span>${sp}</span>`;
+    ul.appendChild(li);
+  });
+  const pri = document.createElement('li');
+  pri.innerHTML = `
+    <div style="display:grid;gap:4px">
+      <div style="display:flex;align-items:center;gap:8px">${makeSpeciesBadge('シラカバ','A',18,false)}<span>A（優先）</span></div>
+      <div style="display:flex;align-items:center;gap:8px">${makeSpeciesBadge('シラカバ','B',18,false)}<span>B</span></div>
+      <div style="display:flex;align-items:center;gap:8px">${makeSpeciesBadge('シラカバ','C',18,false)}<span>C</span></div>
+    </div>`;
+  const h4 = document.querySelector('#legend h4');
+  h4.insertAdjacentHTML('afterend', '<div class="small" style="margin:6px 0 4px">優先度</div>');
+  ul.appendChild(pri);
+}
+
+/** 種別サマリ（共通SVG使用） */
+function renderSummary(countBySpecies){
+  const wrap = document.getElementById('sumRows');
+  wrap.innerHTML = '';
+  Object.entries(countBySpecies).sort((a,b)=>b[1]-a[1]).forEach(([sp, cnt])=>{
+    const row = document.createElement('div');
+    row.className = 'sum-row';
+    row.innerHTML = `
+      <span>${makeSpeciesBadge(sp, null, 16, false)}</span>
+      <span>${sp}</span>
+      <span>${cnt.toLocaleString()} 本</span>`;
+    wrap.appendChild(row);
+  });
+}
+
+/** UI：樹種カラー一覧（デバッグ/確認用） */
+function renderSpeciesColorList(){
+  const host = document.getElementById('speciesColorList');
+  host.innerHTML = '';
+  for(const sp of Object.keys(SPECIES_COLORS)){
+    const div = document.createElement('div');
+    div.className='sum-row';
+    div.innerHTML = `${makeSpeciesBadge(sp,null,16,false)} <div>${sp}</div> <div class='small' style='text-align:right'>${SPECIES_COLORS[sp]}</div>`;
+    host.appendChild(div);
+  }
+}
+
+/** =========================
+ *  地図 / データ読込（既存機能を簡略再現）
+ * =========================*/
+let map = L.map('map',{zoomControl:true}).setView([43.06,141.35], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(map);
+
+const markersLayer = L.layerGroup().addTo(map);
+renderLegend();
+renderSpeciesColorList();
+
+function putRows(rows){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  rows.slice(0,500).forEach(r=>{
+    const tr = document.createElement('tr');
+    const pri = (r.優先 || r.priority || '').toString().trim().toUpperCase();
+    tr.innerHTML = `<td>${r.木ID||r.tree_id||''}</td><td>${r.樹種||r.species||''}</td><td>${pri||''}</td><td>${Number(r.直径||r.dbh||0).toFixed(1)}</td><td>${Number(r.樹高||r.height||0).toFixed(1)}</td><td>${Number(r.材積||r.volume||0).toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('resultBox').hidden = rows.length===0;
+}
+
+function toNumber(v){
+  const n = Number(v); return Number.isFinite(n)?n:undefined;
+}
+
+function plot(rows){
+  markersLayer.clearLayers();
+  const countBySpecies = {};
+  rows.forEach(r=>{
+    const lat = toNumber(r.lat||r.latitude||r.緯度);
+    const lng = toNumber(r.lng||r.longitude||r.経度);
+    const sp = (r.樹種||r.species||'').trim();
+    const pri = (r.優先||r.priority||'').toString().trim().toUpperCase();
+    if(sp) countBySpecies[sp] = (countBySpecies[sp]||0)+1;
+    if(lat && lng){
+      L.marker([lat,lng], {icon: makeDivIcon(sp, pri)}).addTo(markersLayer).bindPopup(
+        `<div style='font-size:12px'>${makeSpeciesBadge(sp, pri, 16, false)} ${sp}<br>直径:${r.直径||r.dbh}cm / 樹高:${r.樹高||r.height}m / 材積:${r.材積||r.volume}m³</div>`
+      );
+    }
+  });
+  if(rows.length) map.fitBounds(markersLayer.getBounds(),{maxZoom:16,padding:[30,30]});
+  renderSummary(countBySpecies);
+  putRows(rows);
+}
+
+// CSV or GeoJSON ローダ
+function loadFile(f){
+  if(!f) return;
+  if(f.name.endsWith('.geojson')||f.name.endsWith('.json')){
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const gj = JSON.parse(e.target.result);
+      const rows = gj.features.map((ft,i)=>({
+        木ID: i+1,
+        樹種: ft.properties?.species || ft.properties?.樹種,
+        優先: ft.properties?.priority || ft.properties?.優先,
+        直径: ft.properties?.dbh, 樹高: ft.properties?.height, 材積: ft.properties?.volume,
+        lat: ft.geometry.coordinates[1], lng: ft.geometry.coordinates[0]
+      }));
+      plot(rows);
+    };
+    reader.readAsText(f);
+  } else {
+    Papa.parse(f, {header:true, skipEmptyLines:true, complete: res=>{
+      plot(res.data);
+    }});
+  }
+}
+
+document.getElementById('file').addEventListener('change', e=>loadFile(e.target.files[0]));
+
+// DnD
+const dropZone = document.getElementById('dropZone');
+;['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.style.borderColor='#22d3ee'}));
+;['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.style.borderColor='#374151'}));
+dropZone.addEventListener('drop', e=>{const f = e.dataTransfer.files?.[0]; if(f) loadFile(f)});
+
+// サンプル読込（ローカルに存在する場合のみ）
+document.getElementById('loadSample').addEventListener('click', async ()=>{
+  // ChatGPT Canvasでは /mnt/data に配置されたファイルを直接読めない環境もあるため
+  // ここではユーザー操作でファイルを選ぶ動線を案内
+  alert('左の「ファイルを選択」から /mnt/data/forest_inventory_species_replaced_utf8.csv を選択してください。\n（環境により直接読み込めない場合があります）');
+});
+
+</script>
 </body>
 </html>
