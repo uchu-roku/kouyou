@@ -1,13 +1,11 @@
 // map.js
 import { escapeHtml, fmt, getCSS } from './utils.js';
 
-// ==============================
-// 絵文字割当（必要に応じて自由に調整可）
-// ==============================
+// ====== 樹種→絵文字（凡例・サマリ・マップで共通） ======
 const EMOJI_BY_SPECIES = {
   'アカエゾマツ': '🌲',
   'トドマツ':     '🌲',
-  'カラマツ':     '🌴', // 区別のため木以外も許容
+  'カラマツ':     '🌴', // 区別用に木以外も許容
   'シラカバ':     '🌳',
   '白樺':         '🌳',
   'シラカンバ':   '🌳',
@@ -18,15 +16,13 @@ const EMOJI_BY_SPECIES = {
 };
 const DEFAULT_EMOJI = '🌳';
 
-// 互換のため残す（値は使わない）
-const SPECIES_DRAW = {};
-
-// 共通：樹種→絵文字
 function emojiForSpecies(species){
   return EMOJI_BY_SPECIES[species] || DEFAULT_EMOJI;
 }
 
 let map, markersLayer, tbodyRef, yearsRef, priceMulRef, baseLayer;
+// 木ID→Leafletマーカー の索引（行クリックでポップアップを開く用）
+let markerIndex = new Map();
 
 export function initMap(mapEl, opts){
   if(!mapEl) return;
@@ -129,7 +125,9 @@ function iconForSpecies(species, prio){
 export function renderMap(predicted, markerMode, onMarkerClick){
   if(!markersLayer) return;
   markersLayer.clearLayers();
+  markerIndex.clear();
   if(!predicted || !predicted.length) return;
+
   const pts=[];
   const mode=markerMode||'icon';
   const t = Number(yearsRef?.value||0);
@@ -150,6 +148,7 @@ export function renderMap(predicted, markerMode, onMarkerClick){
       const color = ({A:getCSS('--prioA'),B:getCSS('--prioB'),C:getCSS('--prioC')}[r['伐採優先度']]||'#e5e7eb');
       m = L.circleMarker([lat,lon], {radius,color,weight:1,fillColor:color,fillOpacity:.9});
     }
+
     m.addTo(markersLayer);
     m.bindPopup(`
       <div style="min-width:240px">
@@ -161,10 +160,43 @@ export function renderMap(predicted, markerMode, onMarkerClick){
         <div class="hint" style="margin-top:6px">※ ${escapeHtml(t)} 年後・価格倍率 ${pm.toFixed(2)} を反映</div>
       </div>`);
     m.on('click', ()=> onMarkerClick?.(r));
+
+    // 索引に登録（木IDベース）
+    const rowId = r['木ID']!=null ? String(r['木ID']) : null;
+    if(rowId) markerIndex.set(rowId, m);
   });
 
   const b=L.latLngBounds(pts);
   if(b.isValid()) map.fitBounds(b.pad(0.2));
+}
+
+// === テーブル行クリック → 地図を拡大＆ポップアップを開く ===
+export function focusOnRow(row, opts={}){
+  if(!map) return;
+  const targetZoom = Number.isFinite(opts.zoom)? opts.zoom : 15;
+  const openPopup = opts.openPopup!==false;
+
+  // 1) マーカー索引から探す（木ID）
+  const rowId = row?.['木ID']!=null ? String(row['木ID']) : null;
+  const m = rowId ? markerIndex.get(rowId) : null;
+  if(m){
+    const ll = m.getLatLng();
+    map.flyTo(ll, Math.max(map.getZoom(), targetZoom), {animate:true, duration:0.8});
+    if(openPopup) setTimeout(()=> m.openPopup(), 300);
+    return;
+  }
+
+  // 2) 座標から直接フォーカス（同一IDがない/索引未登録時）
+  const lat = row? (row._geom? row._geom[0] : row['緯度']) : null;
+  const lon = row? (row._geom? row._geom[1] : row['経度']) : null;
+  if(isFinite(lat) && isFinite(lon)){
+    const ll = L.latLng(lat,lon);
+    map.flyTo(ll, Math.max(map.getZoom(), targetZoom), {animate:true, duration:0.8});
+    if(openPopup){
+      // 仮ポップアップ（既存マーカーが無い場合）
+      L.popup().setLatLng(ll).setContent(`<div><b>木ID:</b> ${escapeHtml(row['木ID'])||''}<br><b>樹種:</b> ${escapeHtml(row['樹種'])||''}</div>`).openOn(map);
+    }
+  }
 }
 
 export function updateSpeciesLegend(speciesList){
