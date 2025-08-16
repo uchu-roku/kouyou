@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>広葉樹管理ツール（v1.1.1）</title>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- PapaParse -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <link rel="stylesheet" href="./css/styles.css?v=111" />
+</head>
+<body>
+<header>
+  <h1 aria-label="アプリ名">🌳 広葉樹管理ツール（<span style="color:#22d3ee">v1.1.1</span>）</h1>
+  <span class="pill small">CSV/GeoJSONを読み込んで地図＋表＋予測を可視化</span>
+  <span class="pill small">クライアントサイドのみ（サーバ不要）</span>
+</header>
+
+<div class="container">
+  <section class="panel" style="height:100%">
+    <header><div class="body">
+      <div class="controls" role="region" aria-label="操作パネル">
+        <div class="stack">
+          <label for="file">データ読込（CSV または GeoJSON）</label>
+          <input id="file" type="file" accept=".csv,.geojson,.json" aria-label="データファイルを選択" />
+          <div id="dropzone" class="dropzone" aria-label="ここにファイルをドラッグ&ドロップ">ここに CSV / GeoJSON をドラッグ＆ドロップ<br><span class="hint">または上の「ファイルを選択」から読み込み</span></div>
+        </div>
+        <div class="stack">
+          <div class="futureBar">
+            <div class="futureRow" role="group" aria-label="未来予測">
+              <span class="badge" title="現在からの年数">⏳ 予測年数</span>
+              <input id="years" type="range" min="0" max="10" step="1" value="0" aria-label="予測年数スライダー 0から10年" />
+              <output id="yearsOut" for="years" style="min-width:4ch;text-align:right">0</output>
+              <button id="play" class="solid" aria-label="自動再生">▶ 再生</button>
+            </div>
+            <div class="priceCtrl" role="group" aria-label="価格シナリオ">
+              <span class="badge" title="木材価格倍率">💹 価格倍率</span>
+              <input id="priceMul" type="range" min="0.5" max="1.5" step="0.05" value="1.00" aria-label="価格倍率 0.5〜1.5" />
+              <output id="priceOut" for="priceMul" style="min-width:6ch;text-align:right">×1.00</output>
+            </div>
+            <div class="kpis" aria-label="KPI">
+              <div class="kpi"><div class="label">表示件数</div><div class="val" id="kpiCount">0</div></div>
+              <div class="kpi"><div class="label">総材積（m³）</div><div class="val" id="kpiVol">0</div></div>
+              <div class="kpi"><div class="label">総粗利（円）</div><div class="val" id="kpiProfit">0</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>マーカー表示</label>
+            <div class="pill" style="gap:8px">
+              <span class="small" style="color:#b7c3d7">種=形／優先度=枠色</span>
+              <select id="markerMode" aria-label="マーカー表示モード">
+                <option value="icon">アイコン（推奨）</option>
+                <option value="dot">色分けドット（直径でサイズ）</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label for="minDbh">サイズ（直径≥cm）</label>
+            <input id="minDbh" type="number" value="0" min="0" step="1" aria-label="最小直径フィルタ"/>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="speciesFilter">樹種フィルタ</label>
+            <select id="speciesFilter" aria-label="樹種で絞り込み"><option value="">（全て）</option></select>
+          </div>
+          <div>
+            <label for="prioFilter">優先度フィルタ</label>
+            <select id="prioFilter" aria-label="伐採優先度で絞り込み">
+              <option value="">（全て）</option>
+              <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="standFilter">林分ID</label>
+            <input id="standFilter" type="text" placeholder="例: 林分番号 3" aria-label="林分IDで絞り込み"/>
+          </div>
+          <div>
+            <label for="harvestDbh">収穫基準（直径cm）</label>
+            <input id="harvestDbh" type="number" value="30" min="0" step="1" aria-label="伐採可能基準の直径"/>
+          </div>
+        </div>
+        <div class="row">
+          <div class="pill small" style="gap:8px;display:flex;align-items:center">
+            現在表示: <span id="rowCount" class="count" aria-live="polite">0</span> 本
+          </div>
+          <div class="flex" style="justify-content:end;gap:8px">
+            <button id="exportCsv" class="solid" aria-label="表示結果をCSV出力">CSV出力（現画面）</button>
+            <button id="resetFilters" class="ghost" aria-label="条件をクリア">条件クリア</button>
+          </div>
+        </div>
+        <div class="hint">
+          ・列名の自動認識：<code>緯度/経度</code> または GeoJSON の Point 形状があれば地図に描画。<br>
+          ・<code>予測_直径_1年後(cm)</code> / <code>予測_材積_1年後(m³)</code> がある場合は、年数分を線形近似で反映。<br>
+          ・価格倍率は総粗利のシナリオ試算に利用（粗利既存値があれば体積変化比×倍率で近似）。
+        </div>
+      </div>
+    </div></header>
+  </section>
+
+  <section class="panel" style="display:grid;grid-template-rows:58% 42%;height:100%">
+    <div id="map" role="region" aria-label="地図表示"></div>
+    <div style="display:grid;grid-template-rows:auto 1fr auto;min-height:220px">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="テーブル検索（樹種, 林分ID, 木ID など）" aria-label="テーブル内検索" />
+        <div class="spacer"></div>
+      </div>
+      <div style="overflow:auto">
+        <table id="table" aria-label="データ表">
+          <thead>
+            <tr>
+              <th data-key="木ID">木ID</th>
+              <th data-key="樹種">樹種</th>
+              <th data-key="林分ID">林分ID</th>
+              <th data-key="伐採優先度">優先</th>
+              <th data-key="直径(cm)">直径(cm)</th>
+              <th data-key="高さ(m)">樹高(m)</th>
+              <th data-key="材積(m³)">材積(m³)</th>
+              <th data-key="推定樹齢(年)">樹齢</th>
+              <th data-key="単価(円/m³)">単価</th>
+              <th data-key="粗利(円)">粗利</th>
+              <th data-key="予測_直径_1年後(cm)">直径+1y</th>
+              <th data-key="予測_材積_1年後(m³)">材積+1y</th>
+              <th data-key="伐採可能年">伐採可能年</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="hint" style="padding:8px 10px;border-top:1px solid var(--border)">
+        表ヘッダクリックで並び替え。行クリックで地図をフォーカス。
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module" src="./js/app.js?v=111"></script>
+</body>
+</html>
