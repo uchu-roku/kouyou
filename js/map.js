@@ -1,12 +1,30 @@
+// map.js
 import { escapeHtml, fmt, getCSS } from './utils.js';
 
-const SPECIES_DRAW = {
-  'アカエゾマツ':'emoji',
-  'シラカバ':'birch','白樺':'birch','シラカンバ':'birch',
-  'トドマツ':'fir','ミズナラ':'emoji-leaf','カラマツ':'larch'
+// ==============================
+// 絵文字割当（必要に応じて自由に調整可）
+// ==============================
+const EMOJI_BY_SPECIES = {
+  'アカエゾマツ': '🌲',
+  'トドマツ':     '🌲',
+  'カラマツ':     '🌴', // 区別のため木以外も許容
+  'シラカバ':     '🌳',
+  '白樺':         '🌳',
+  'シラカンバ':   '🌳',
+  'ミズナラ':     '🍂',
+  'ハルニレ':     '🌿',
+  'イタヤカエデ': '🍁',
+  'ヤチダモ':     '🍃'
 };
-const EMOJI_BY_SPECIES = {'アカエゾマツ':'\uD83C\uDF32','ミズナラ':'\uD83C\uDF42'}; // 🌲, 🍂
-const DEFAULT_EMOJI = '\uD83C\uDF33'; // 🌳
+const DEFAULT_EMOJI = '🌳';
+
+// 互換のため残す（値は使わない）
+const SPECIES_DRAW = {};
+
+// 共通：樹種→絵文字
+function emojiForSpecies(species){
+  return EMOJI_BY_SPECIES[species] || DEFAULT_EMOJI;
+}
 
 let map, markersLayer, tbodyRef, yearsRef, priceMulRef, baseLayer;
 
@@ -18,14 +36,14 @@ export function initMap(mapEl, opts){
 
   map = L.map(mapEl,{zoomControl:true, preferCanvas:false});
 
-  // OSM ベースレイヤ（明示）
+  // OSM ベースレイヤ
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
   }).addTo(map);
   baseLayer = osm;
 
-  // レイヤ切替（今後の拡張用）
+  // レイヤ切替（拡張用）
   L.control.layers({"OpenStreetMap": osm}, {}, {collapsed: true, position: 'topleft'}).addTo(map);
 
   markersLayer = L.layerGroup().addTo(map);
@@ -95,24 +113,17 @@ function bindToggles(){
 }
 
 function ringClass(pr){ return pr==='A'?'ring-A':pr==='B'?'ring-B':pr==='C'?'ring-C':''; }
+
+// マーカーは絵文字で統一
 function iconForSpecies(species, prio){
-  const type = SPECIES_DRAW[species] || 'emoji';
   const ring = ringClass(prio);
-  if(type==='fir'){
-    return L.divIcon({className:'',iconSize:[0,0],iconAnchor:[13,13],
-      html:`<div class="mark ${ring}"><span class="fir"><span class="tri t3"></span><span class="tri t2"></span><span class="tri t1"></span><span class="trunk"></span></span></div>`});
-  }
-  if(type==='larch'){
-    return L.divIcon({className:'',iconSize:[0,0],iconAnchor:[13,13],
-      html:`<div class="mark ${ring}"><span class="larch"><span class="tri t3"></span><span class="tri t2"></span><span class="tri t1"></span><span class="trunk"></span></span></div>`});
-  }
-  if(type==='birch'){
-    return L.divIcon({className:'',iconSize:[0,0],iconAnchor:[13,13],
-      html:`<div class="mark ${ring}"><span class="birch"><span class="crown"></span><span class="trunk"></span><span class="spot1"></span><span class="spot2"></span><span class="spot3"></span></span></div>`});
-  }
-  const emoji = EMOJI_BY_SPECIES[species] || (type==='emoji-leaf' ? '\uD83C\uDF42' : DEFAULT_EMOJI);
-  return L.divIcon({className:'',iconSize:[0,0],iconAnchor:[13,13],
-    html:`<div class="mark ${ring}"><span class="emoji">${emoji}</span></div>`});
+  const emoji = emojiForSpecies(species);
+  return L.divIcon({
+    className:'',
+    iconSize:[0,0],
+    iconAnchor:[13,13],
+    html:`<div class="mark ${ring}"><span class="emoji">${emoji}</span></div>`
+  });
 }
 
 export function renderMap(predicted, markerMode, onMarkerClick){
@@ -163,7 +174,10 @@ export function updateSpeciesLegend(speciesList){
   const MAX = 50;
   const shown = speciesList.slice(0, MAX);
   const extra = Math.max(0, speciesList.length - shown.length);
-  box.innerHTML = shown.map(s=> `<div class="item"><span class="icon" style="font-size:15px">🌳</span><span>${escapeHtml(s)}</span></div>`).join('');
+  box.innerHTML = shown.map(s=> {
+    const e = emojiForSpecies(s);
+    return `<div class="item"><span class="icon" style="font-size:15px">${e}</span><span>${escapeHtml(s)}</span></div>`;
+  }).join('');
   meta.textContent = extra>0 ? `他 ${extra} 種（先頭 ${MAX} 種を表示）` : '';
 }
 
@@ -172,7 +186,7 @@ export function updateSpeciesSummary(predicted){
   const items = summarizeBySpecies(predicted);
   body.innerHTML = items.map(e=>
     `<tr>
-      <td><span class="icon" style="font-size:15px">🌳</span></td>
+      <td><span class="icon" style="font-size:15px">${emojiForSpecies(e.species)}</span></td>
       <td>${escapeHtml(e.species)}</td>
       <td style="text-align:right">${e.count.toLocaleString('ja-JP')}</td>
       <td style="text-align:right">${e.vol.toLocaleString('ja-JP',{maximumFractionDigits:2})}</td>
