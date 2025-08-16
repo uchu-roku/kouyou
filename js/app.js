@@ -1,8 +1,9 @@
+// app.js
 import { fmt } from './utils.js';
 import { state, controls, bindControls, setRows, getRows, setPredicted } from './state.js';
 import { initIO } from './io.js';
 import { applyFilters } from './filters.js';
-import { initMap, renderMap, updateSpeciesLegend, updateSpeciesSummary } from './map.js';
+import { initMap, renderMap, updateSpeciesLegend, updateSpeciesSummary, focusOnRow } from './map.js';
 import { initTable, renderTable, wireSortHandlers, setSort, getSort } from './table.js';
 import { exportCsv } from './exportCsv.js';
 import { saveSettings, loadSettings } from './state.js';
@@ -41,7 +42,12 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
   // Init Map & Table
   initMap(byId('map'), { yearsRef: controls.years, priceMulRef: controls.priceMul, tbodyRef: document.querySelector('#table tbody') });
-  initTable(document.querySelector('#table tbody'), (row)=> focusMapRow(row));
+  initTable(document.querySelector('#table tbody'), (row)=>{
+    // 地図へフォーカス＋ポップアップ
+    focusOnRow(row, {zoom: 15, openPopup: true});
+    // 既存のテーブル側フォーカス（ハイライト＆スクロール）は継続
+    focusMapRow(row);
+  });
   wireSortHandlers(document.querySelector('#table thead'), (k, asc)=>{ setSort(k, asc); renderTable(state.predicted); });
 
   // Wire controls
@@ -134,6 +140,6 @@ function focusMapRow(row){
 }
 
 function focusTableRow(row){
-  // Map click -> table focus
+  // Map click -> table focus（従来動作は維持）
   focusMapRow(row);
 }
