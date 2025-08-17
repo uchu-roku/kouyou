@@ -140,3 +140,9 @@ tbody tr:hover{background:#fff2e8}
 @media (max-width: 520px){
   :root{ --shadow: 0 3px 10px rgba(36,24,10,.06); }
 }
+
+/* Leaflet の divIcon が枠や余白を持たないよう明示（環境差対策）*/
+.leaflet-div-icon{ background:transparent; border:none; }
+
+/* 小画面のとき左カラムに余白を少しだけ */
+@media (max-width:1080px){ .leftPanel{ padding-bottom:8px; } }
