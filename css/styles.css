@@ -172,3 +172,29 @@ tbody tr:hover{background:#fff2e8}
   overflow-y: auto;               /* 縦スクロール */
   overflow-x: hidden;             /* 横は出さない */
 }
+
+/* ページ最上部のヘッダーだけをflexに（パネル内headerへは当てない） */
+body > header{
+  padding:12px 16px; border-bottom:1px solid var(--border);
+  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+}
+
+/* 左パネル内のheaderはgridにして .body に高さを割り当てる */
+.leftPanel{ height:100%; overflow:hidden; } /* 横スクロールの発生源を断つ */
+
+.leftPanel > header{
+  height:100%;
+  display:grid !important;        /* ← global header を上書き */
+  grid-template-rows:auto 1fr;    /* 上: 見出し行 / 下: 本文(スクロール) */
+}
+
+.leftPanel > header .body{
+  min-height:0;                   /* grid内でoverflowを効かせる必須 */
+  overflow-y:auto;                /* 縦スクロール */
+  overflow-x:hidden;              /* 横は出さない */
+}
+
+/*（お好みで）小画面時に下余白が欲しければこれを残す */
+@media (max-width:1080px){
+  .leftPanel{ padding-bottom:8px; }
+}
