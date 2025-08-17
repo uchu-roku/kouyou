@@ -17,8 +17,16 @@ body{
 }
 *:focus-visible{outline:3px solid var(--focus); outline-offset:2px}
 
-header{padding:12px 16px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap}
-header h1{margin:0 8px 0 0; font-size:18px; letter-spacing:.02em}
+body > header{
+  padding:12px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+}
+body > header h1{
+  margin:0 8px 0 0;
+  font-size:18px;
+  letter-spacing:.02em;
+}
 
 /* panel */
 .panel{background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow)}
@@ -157,44 +165,35 @@ tbody tr:hover{background:#fff2e8}
   white-space: normal; /* nowrapを上書きして折り返し */
 }
 
-/* 左カラムを縦スクロールにする（横スクロールは消す） */
-.leftPanel{ 
-  height: 100%;
-  overflow: hidden;               /* 横スクロールの発生源を断つ */
-}
-.leftPanel > header{
-  height: 100%;                   /* パネルの高さを満たす */
-  display: grid;                  /* タイトル行 + 本文 */
-  grid-template-rows: auto 1fr;   /* 上: ヘッダ行 / 下: 本文(スクロール) */
-}
-.leftPanel > header .body{
-  min-height: 0;                  /* grid内でoverflowを効かせる必須指定 */
-  overflow-y: auto;               /* 縦スクロール */
-  overflow-x: hidden;             /* 横は出さない */
-}
-
-/* ページ最上部のヘッダーだけをflexに（パネル内headerへは当てない） */
-body > header{
-  padding:12px 16px; border-bottom:1px solid var(--border);
-  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
-}
-
-/* 左パネル内のheaderはgridにして .body に高さを割り当てる */
-.leftPanel{ height:100%; overflow:hidden; } /* 横スクロールの発生源を断つ */
-
-.leftPanel > header{
+/* === 左カラム（.leftPanel）を縦スクロールにする：確定版 === */
+.leftPanel{
+  display:grid;
+  grid-template-rows:auto 1fr; /* 見出し + 本文 */
   height:100%;
-  display:grid !important;        /* ← global header を上書き */
-  grid-template-rows:auto 1fr;    /* 上: 見出し行 / 下: 本文(スクロール) */
+  overflow:hidden;             /* 横スクロールの発生源を断つ */
+}
+
+.leftPanel > header{
+  display:grid;
+  grid-template-rows:auto 1fr; /* 見出し + .body */
+  height:100%;
+  min-height:0;                /* 子overflowを効かせる必須 */
 }
 
 .leftPanel > header .body{
-  min-height:0;                   /* grid内でoverflowを効かせる必須 */
-  overflow-y:auto;                /* 縦スクロール */
-  overflow-x:hidden;              /* 横は出さない */
+  min-height:0;                /* これも必須 */
+  overflow-y:auto;             /* ←縦スクロール */
+  overflow-x:hidden;           /* 横は出さない */
 }
 
-/*（お好みで）小画面時に下余白が欲しければこれを残す */
+/* テキストは折り返して横スクロールを抑止 */
+.leftPanel .controls{ min-width:0; overflow-wrap:anywhere; }
+.leftPanel .pill{ white-space:normal; }
+
+/* 小さめ画面で下に少し余白（任意） */
 @media (max-width:1080px){
   .leftPanel{ padding-bottom:8px; }
+  .leftPanel > header .body{ padding-bottom:8px; }
 }
+
+.leftPanel > header .body{ -webkit-overflow-scrolling: touch; }
