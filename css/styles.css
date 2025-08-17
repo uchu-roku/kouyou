@@ -99,3 +99,44 @@ tbody tr:hover{background:#fff2e8}
 .legend,.speciesSummary{z-index:1000}
 .leaflet-control-container{z-index:995}
 #map .leaflet-pane, #map .leaflet-top, #map .leaflet-bottom{z-index:990}
+
+/* === マーカーを見やすく（サイズUP & 枠色＝優先度） === */
+:root{
+  /* 優先度カラー（地図で映える配色） */
+  --prioA:#1e854a;  /* A = 緑（優先） */
+  --prioB:#d97706;  /* B = アンバー */
+  --prioC:#b91c1c;  /* C = 赤 */
+}
+
+/* カスタムマーカーの見た目（divIcon） */
+.mark{
+  position:relative;
+  transform:translate(-50%,-50%);
+  width:30px;               /* ← 28-30px が視認性◎ */
+  height:30px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:#ffffffee;     /* 明るい縁取りで地図上でも見える */
+  border:3px solid #64748b; /* デフォルト枠（優先度なしの時） */
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+.emoji{ font-size:18px; line-height:1 } /* アイコンの大きさ */
+
+.ring-A{ border-color:var(--prioA) !important; }
+.ring-B{ border-color:var(--prioB) !important; }
+.ring-C{ border-color:var(--prioC) !important; }
+
+/* 大きな画面ではさらに少し大きく */
+@media (min-width:1400px){
+  .mark{ width:34px; height:34px; }
+  .emoji{ font-size:20px; }
+}
+
+/* === 左カラムが全部見えるように：中身をスクロール === */
+.leftPanel{ height:100%; display:grid; grid-template-rows:auto 1fr; }
+.leftPanel .body{ overflow:auto; }
+
+/* === 影をスマホで軽く（ご希望のメディアクエリ） === */
+@media (max-width: 520px){
+  :root{ --shadow: 0 3px 10px rgba(36,24,10,.06); }
+}
