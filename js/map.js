@@ -108,17 +108,37 @@ function bindToggles(){
   });
 }
 
-function ringClass(pr){ return pr==='A'?'ring-A':pr==='B'?'ring-B':pr==='C'?'ring-C':''; }
+// 優先度 → 枠色クラス
+function ringClass(pr){
+  const p = (pr||'').toString().trim().toUpperCase();
+  return p==='A' ? 'ring-A' : p==='B' ? 'ring-B' : p==='C' ? 'ring-C' : '';
+}
 
-// マーカーは絵文字で統一
+function zIndexForPrio(pr){
+  const p = (pr||'').toString().trim().toUpperCase();
+  return p==='A' ? 300 : p==='B' ? 200 : p==='C' ? 100 : 0;
+}
+
+// マーカーは絵文字＋優先度枠。サイズは画面幅で少し可変
 function iconForSpecies(species, prio){
-  const ring = ringClass(prio);
+  const ring  = ringClass(prio);
   const emoji = emojiForSpecies(species);
+
+  // CSS側の .mark { width:30px; height:30px } に合わせる
+  // （超大画面では少しだけ大きく）
+  const isWide = window.innerWidth >= 1400;
+  const size   = isWide ? 34 : 30;
+  const anchor = Math.round(size/2);
+
   return L.divIcon({
-    className:'',
-    iconSize:[0,0],
-    iconAnchor:[13,13],
-    html:`<div class="mark ${ring}"><span class="emoji">${emoji}</span></div>`
+    className: 'leaflet-div-icon', // デフォルトクラス（空でも可）
+    iconSize:  [size, size],       // ← 0,0 はやめて実寸を指定
+    iconAnchor:[anchor, anchor],   // 中心に来るように
+    html: `
+      <div class="mark ${ring}">
+        <span class="emoji" style="font-size:${isWide?20:18}px">${emoji}</span>
+      </div>
+    `,
   });
 }
 
@@ -133,38 +153,47 @@ export function renderMap(predicted, markerMode, onMarkerClick){
   const t = Number(yearsRef?.value||0);
   const pm = Number(priceMulRef?.value||1);
 
-  predicted.forEach(r=>{
-    const lat=r._geom? r._geom[0]:r['緯度'];
-    const lon=r._geom? r._geom[1]:r['経度'];
-    if(!isFinite(lat)||!isFinite(lon)) return;
-    pts.push([lat,lon]);
+predicted.forEach(r=>{
+  const lat=r._geom? r._geom[0]:r['緯度'];
+  const lon=r._geom? r._geom[1]:r['経度'];
+  if(!isFinite(lat)||!isFinite(lon)) return;
+  pts.push([lat,lon]);
 
-    let m;
-    if(mode==='icon'){
-      m = L.marker([lat,lon], {icon: iconForSpecies(r['樹種'], r['伐採優先度'])});
-    }else{
-      const dbh = Number(r['直径(cm)']);
-      const radius = isFinite(dbh)? Math.max(4, Math.min(14, dbh/4)) : 6;
-      const color = ({A:getCSS('--prioA'),B:getCSS('--prioB'),C:getCSS('--prioC')}[r['伐採優先度']]||'#e5e7eb');
-      m = L.circleMarker([lat,lon], {radius,color,weight:1,fillColor:color,fillOpacity:.9});
-    }
+  let m; // ★追加
 
-    m.addTo(markersLayer);
-    m.bindPopup(`
-      <div style="min-width:240px">
-        <div><b>木ID:</b> ${escapeHtml(r['木ID'])} <span class="tag ${escapeHtml(r['伐採優先度'])}">${escapeHtml(r['伐採優先度'])}</span></div>
-        <div><b>樹種:</b> ${escapeHtml(r['樹種'])} / <b>林分:</b> ${escapeHtml(r['林分ID'])}</div>
-        <div><b>直径:</b> ${escapeHtml(r['直径(cm)'])} cm, <b>樹高:</b> ${escapeHtml(r['高さ(m)'])??''} m</div>
-        <div><b>材積:</b> ${fmt(r['材積(m³)'])} m³, <b>粗利:</b> ${fmt(r['粗利(円)'])} 円</div>
-        <div><b>伐採可能年:</b> ${escapeHtml(r['伐採可能年'])}</div>
-        <div class="hint" style="margin-top:6px">※ ${escapeHtml(t)} 年後・価格倍率 ${pm.toFixed(2)} を反映</div>
-      </div>`);
-    m.on('click', ()=> onMarkerClick?.(r));
+  if (mode === 'icon') {
+    m = L.marker([lat, lon], {
+      icon: iconForSpecies(r['樹種'], r['伐採優先度']),
+      zIndexOffset: zIndexForPrio(r['伐採優先度']),
+    });
+  } else {
+    const dbh = Number(r['直径(cm)']);
+    const radius = isFinite(dbh) ? Math.max(5, Math.min(16, dbh/3.5)) : 7;
+    const color = ({A:getCSS('--prioA'),B:getCSS('--prioB'),C:getCSS('--prioC')}[r['伐採優先度']]||'#e5e7eb');
+    m = L.circleMarker([lat,lon], { radius, color, weight:1, fillColor:color, fillOpacity:.9 });
+  }
 
-    // 索引に登録（木IDベース）
-    const rowId = r['木ID']!=null ? String(r['木ID']) : null;
-    if(rowId) markerIndex.set(rowId, m);
-  });
+  m.addTo(markersLayer);
+  if (mode !== 'icon' && r['伐採優先度'] === 'A') {
+    m.bringToFront();
+  }
+
+  const h = r['高さ(m)'];
+
+  m.bindPopup(`
+    <div style="min-width:240px">
+      <div><b>木ID:</b> ${escapeHtml(r['木ID'])} <span class="tag ${escapeHtml(r['伐採優先度'])}">${escapeHtml(r['伐採優先度'])}</span></div>
+      <div><b>樹種:</b> ${escapeHtml(r['樹種'])} / <b>林分:</b> ${escapeHtml(r['林分ID'])}</div>
+      <div><b>直径:</b> ${escapeHtml(r['直径(cm)'])} cm, <b>樹高:</b> ${h != null ? escapeHtml(h) : ''} m</div>
+      <div><b>材積:</b> ${fmt(r['材積(m³)'])} m³, <b>粗利:</b> ${fmt(r['粗利(円)'])} 円</div>
+      <div><b>伐採可能年:</b> ${escapeHtml(r['伐採可能年'])}</div>
+      <div class="hint" style="margin-top:6px">※ ${escapeHtml(t)} 年後・価格倍率 ${pm.toFixed(2)} を反映</div>
+    </div>`);
+  m.on('click', ()=> onMarkerClick?.(r));
+
+  const rowId = r['木ID']!=null ? String(r['木ID']) : null;
+  if(rowId) markerIndex.set(rowId, m);
+});
 
   const b=L.latLngBounds(pts);
   if(b.isValid()) map.fitBounds(b.pad(0.2));
