@@ -122,3 +122,102 @@ tbody tr:hover{background:#0f1a31}
 .legend, .speciesSummary { z-index: 1000; }
 .leaflet-control-container { z-index: 995; }
 #map .leaflet-pane, #map .leaflet-top, #map .leaflet-bottom { z-index: 990; }
+
+/* ===== 追加: 林業向けテーマ（緑・茶・白 + アクセント=オレンジ） ===== */
+:root{
+  /* 背景・文字 */
+  --bg:            #ffffff;   /* 白 */
+  --panel:         #f7f5f0;   /* 薄いベージュ */
+  --text:          #2b2b2b;   /* 読みやすい濃い灰 */
+  --muted:         #6b7280;   /* 補助テキスト */
+
+  /* 基調（ブランド） */
+  --forest:        #2E6B3F;   /* 深緑（見出し・強調線） */
+  --earth:         #8B5E3C;   /* 茶（区切り・サブ） */
+
+  /* アクセント（主アクション） */
+  --accent:        #E97432;   /* オレンジ */
+  --accent-ink:    #23160f;   /* アクセント上の文字色 */
+
+  /* UIトークン */
+  --border:        #e2ded6;
+  --hover:         #f2efe8;
+  --focus:         #ffeadb;
+  --ok:            #0f9d58;
+  --warn:          #f59e0b;
+  --danger:        #dc2626;
+  --shadow:        0 6px 20px rgba(36,24,10,.08);
+}
+
+/* 全体レイアウト共通（任意） */
+body{ background:var(--bg); color:var(--text); font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif; }
+.container{ max-width:1100px; margin:22px auto; padding:0 16px; }
+
+/* パネル（セクション枠） */
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+}
+.panel header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; border-bottom:1px solid var(--border)
+}
+.panel header .h{ font-weight:700; color:var(--forest) }
+.panel .body{ padding:12px 14px }
+
+/* 区切り見出し */
+.section-title{
+  margin:18px 0 10px; padding-left:10px;
+  border-left:4px solid var(--earth); font-weight:800; color:#4a3a2b
+}
+
+/* ボタン */
+.btn{
+  padding:10px 14px; border-radius:12px; font-weight:700;
+  letter-spacing:.2px; cursor:pointer; transition:.15s ease;
+  border:1px solid transparent;
+}
+.btn.primary{ background:var(--accent); color:var(--accent-ink); }
+.btn.primary:hover{ filter:brightness(0.98); }
+.btn.ghost{ background:#fff; color:var(--forest); border-color:var(--forest); }
+.btn.ghost:hover{ background:var(--hover); }
+.btn.link{ background:transparent; color:var(--earth); padding:8px 6px; }
+.btn.link:hover{ color:#6e462a; }
+
+/* 入力系 */
+label{ font-size:12px; color:var(--muted) }
+input,select{
+  border:1px solid var(--border); background:#fff; color:var(--text);
+  padding:8px 10px; border-radius:10px; min-width:180px;
+}
+input:focus,select:focus{ outline:2px solid var(--focus); border-color:var(--accent) }
+
+/* バッジ（小ラベル） */
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; border-radius:999px; padding:4px 10px;
+  border:1px solid var(--border); background:#fff;
+}
+.badge .dot{ width:8px; height:8px; border-radius:999px; background:var(--forest) }
+
+/* 表（縞・ホバー・合計強調） */
+.table{ width:100%; border-collapse:collapse; font-size:14px; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden }
+.table th,.table td{ padding:10px 12px; border-bottom:1px solid var(--border) }
+.table th{ background:#fff; color:#4b5563; text-align:left }
+.table tbody tr:nth-child(even){ background:#faf8f3 }
+.table tbody tr:hover{ background:#fff2e8 }
+.table tfoot td{ background:#fff7ef; font-weight:700; color:#6e462a }
+
+/* （必要なら）ページ上部の帯 */
+.appbar{
+  position:sticky; top:0; z-index:10;
+  background:linear-gradient(90deg,#2E6B3F 0%,#3d7c4e 55%,#8B5E3C 120%);
+  color:#fff; padding:14px 18px; display:flex; gap:12px; align-items:center;
+}
+.appbar .title{ font-weight:700; letter-spacing:.3px }
+.appbar .tag{ margin-left:auto; background:rgba(255,255,255,.12); padding:4px 10px; border-radius:999px; font-size:12px }
+
+/* 補助テキスト */
+.hint{ color:var(--muted); font-size:12px }
