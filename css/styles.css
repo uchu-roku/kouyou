@@ -146,3 +146,16 @@ tbody tr:hover{background:#fff2e8}
 
 /* 小画面のとき左カラムに余白を少しだけ */
 @media (max-width:1080px){ .leftPanel{ padding-bottom:8px; } }
+
+/* 種別サマリ表を縦スクロールにする */
+.speciesSummary .list{
+  max-height: 200px;   /* 好きな高さに調整可能 */
+  overflow-y: auto;    /* 縦スクロール */
+  overflow-x: hidden;  /* 横スクロール禁止 */
+}
+
+/* セルは折り返し許可 */
+.speciesSummary table th,
+.speciesSummary table td{
+  white-space: normal; /* nowrapを上書きして折り返し */
+}
