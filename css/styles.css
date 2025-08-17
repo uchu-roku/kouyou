@@ -90,7 +90,7 @@ tbody tr:hover{background:#fff2e8}
   padding:12px;
 }
 @media (max-width:1080px){
-  .container{ grid-template-columns:1fr; grid-auto-rows:minmax(0,1fr); }
+  .leftPanel{ padding-bottom:8px; }
 }
 
 /* 地図の高さ */
@@ -144,9 +144,6 @@ tbody tr:hover{background:#fff2e8}
 /* Leaflet の divIcon が枠や余白を持たないよう明示（環境差対策）*/
 .leaflet-div-icon{ background:transparent; border:none; }
 
-/* 小画面のとき左カラムに余白を少しだけ */
-@media (max-width:1080px){ .leftPanel{ padding-bottom:8px; } }
-
 /* 種別サマリ表を縦スクロールにする */
 .speciesSummary .list{
   max-height: 200px;   /* 好きな高さに調整可能 */
@@ -158,4 +155,20 @@ tbody tr:hover{background:#fff2e8}
 .speciesSummary table th,
 .speciesSummary table td{
   white-space: normal; /* nowrapを上書きして折り返し */
+}
+
+/* 左カラムを縦スクロールにする（横スクロールは消す） */
+.leftPanel{ 
+  height: 100%;
+  overflow: hidden;               /* 横スクロールの発生源を断つ */
+}
+.leftPanel > header{
+  height: 100%;                   /* パネルの高さを満たす */
+  display: grid;                  /* タイトル行 + 本文 */
+  grid-template-rows: auto 1fr;   /* 上: ヘッダ行 / 下: 本文(スクロール) */
+}
+.leftPanel > header .body{
+  min-height: 0;                  /* grid内でoverflowを効かせる必須指定 */
+  overflow-y: auto;               /* 縦スクロール */
+  overflow-x: hidden;             /* 横は出さない */
 }
